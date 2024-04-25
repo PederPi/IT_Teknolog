@@ -1,6 +1,9 @@
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-import random
+from random import random
+import threading
+import time
+
 uri = "mongodb+srv://admin:Kode1234!@cluster0.88pdw6d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 
 # Create a new client and connect to the server
@@ -17,8 +20,29 @@ except Exception as e:
 db = client["weather_data"]
 
 #Collection name:
-col = db["temperature"]
-col = db["humidity"]
+col = db["weather_data"]
 
 def get_temperature():
-    return randrange(20)
+    return random() * 20
+
+def get_humidity():
+    return random() * 100
+
+def get_time():
+    return time()
+
+def timing_function():
+    thread = threading.Timer(60.0, upload_data)
+    thread.start()
+    upload_data()
+    return
+
+def upload_data():
+    weather_data = ["time": get_time()]
+    return
+
+##################################################################################################
+#       Main        
+##################################################################################################
+while(1):
+    timing_function()

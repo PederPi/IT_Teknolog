@@ -7,7 +7,11 @@ Rover Project, IT-Teknolog
 //Libraries:
 ////////////////////////////////////////////////////////////////////////////////////
 //Thermo couple library:
-#include "max6675.h"
+#include <max6675.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <SPI.h>
+#include <Wire.h>
 ////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -26,6 +30,8 @@ Rover Project, IT-Teknolog
 #define right_motor_direction_2_pin 3
 #define left_motor_direction_1_pin 4
 #define left_motor_direction_2_pin 5
+//OLED display pin:
+#define oled_reset 9
 //Joystick switch and axis pins:
 #define joystick_switch_pin 6
 //joystick_x_axis_pin A0
@@ -47,11 +53,17 @@ Rover Project, IT-Teknolog
 #define loop_update_delay_in_milliseconds 100
 //Motor frequency:
 #define motor_PWM_frequency 25000
+//Display variables:
+#define screen_width 128
+#define screen_height 32
+#define screen_address 0x3C
 //Joystick global variables:
 int x_direction = 0;
 int y_direction = 0;
 //Variable used by multiple functions for controlling motor frequency and speed:
 int ICR4Variable = 0;
+//Timer variable for thermocouple reading:
+int counter = 0;
 ////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -63,9 +75,12 @@ int ICR4Variable = 0;
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-//Thermo couple object creation:
+//Object creation:
 ////////////////////////////////////////////////////////////////////////////////////
+//Thermo couple object:
 MAX6675 thermo_couple(SCK_pin, thermocouple_CS_pin, MISO_pin);
+//Display object:
+Adafruit_SSD1306 display(screen_width, screen_height, &Wire, oled_reset);
 ////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -76,12 +91,14 @@ MAX6675 thermo_couple(SCK_pin, thermocouple_CS_pin, MISO_pin);
 #define serial1_baud_rate 9600
 ////////////////////////////////////////////////////////////////////////////////////
 
+
 //Main functions (setup and loop):
 ////////////////////////////////////////////////////////////////////////////////////
 void setup(){
   init_serial();
   init_motors();
   init_joystick();
+  init_oled_display();
 }
 void loop(){
   get_joystick_input();
@@ -137,9 +154,8 @@ void set_right_motor_speed(int percentage_duty_cycle) {
     float offset_duty_cycle = map(percentage_duty_cycle, 0, 100, (right_motor_offset / 255), 100);
     OCR4B  = ICR4Variable * ((float)(offset_duty_cycle / 100.0));
   }else{
-    float offset_duty_cycle = map(percentage_duty_cycle, 0, 100, (left_motor_offset / 255), 100);
+    float offset_duty_cycle = map(percentage_duty_cycle, 0, 100, (left_motor_offset / 255), 100); //ERROR!!!!!!!!!!!!!!!!!!!!!!!
     int converted_duty_cycle = round(float(offset_duty_cycle) * 2.55);
-    Serial.println(converted_duty_cycle);
     analogWrite(right_Motor_PWN_pin, converted_duty_cycle);
   }
 }
@@ -238,6 +254,32 @@ float get_thermo_couple_temperature(){
   return (thermo_couple.readCelsius());
 }
 void get_thermo_couple_temperature_and_write_to_raspberry_pi(){
-  Serial1.print(get_thermo_couple_temperature());
+  counter += 1;
+  if(counter == temperature_measurement_interval_in_seconds * 10){
+    float current_temperature = get_thermo_couple_temperature();
+    Serial1.print(current_temperature);
+    update_oled_display(current_temperature);
+    counter = 0;
+  }
 }
 ////////////////////////////////////////////////////////////////////////////////////
+
+
+//Display handling function:
+////////////////////////////////////////////////////////////////////////////////////
+void init_oled_display(){
+  display.begin(SSD1306_SWITCHCAPVCC, screen_address);
+} 
+void update_oled_display(float display_text){
+  String display_text_string = String(display_text);
+  display.clearDisplay();
+  display.setTextSize(1);      // Normal 1:1 pixel scale
+  display.setTextColor(SSD1306_WHITE); // Draw white text
+  display.setCursor(0, 0);     // Start at top-left corner
+  display.cp437(true);         // Use full 256 char 'Code Page 437' font
+  display.println("Last temperature");
+  display.println("successfully sent");
+  display.println("to server:");
+  display.print(display_text_string);
+  display.display();
+}
